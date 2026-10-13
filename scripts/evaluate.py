@@ -9,8 +9,8 @@ python scripts/evaluate.py --weights runs/train/A_original_416/weights/best.pt \
 python scripts/evaluate.py --weights models/agaeye_A_original_416.onnx --backend onnx \
     --data datasets/agaeye/data_original.yaml --imgsz 416     # 파이와 같은 추론 코드로 평가
 python scripts/evaluate.py --weights runs/train/A_original_320_aug/weights/best.pt \
-    --data datasets/kjy/data_original.yaml --imgsz 320 --split all --name kjy_A_original_320_aug
-                                                               # 외부 데이터셋 전체로 평가 (박스 지표 생략)
+    --data datasets/<데이터셋>/data_original.yaml --imgsz 320 --split all --name <결과이름>
+                                                               # 다른 데이터셋 전체로 평가 (박스 지표 생략)
 결과: results/eval_<이름>_<백엔드>.json
 """
 from __future__ import annotations

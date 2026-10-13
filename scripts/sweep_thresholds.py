@@ -9,7 +9,7 @@ python scripts/sweep_thresholds.py --exp A_original_416
 python scripts/sweep_thresholds.py --exp A_original_416 A_original_320 --target-recall 0.9
 python scripts/sweep_thresholds.py --exp A_original_416 --backend onnx   # 파이와 같은 추론 코드로
 python scripts/sweep_thresholds.py --weights runs/train/A_original_320_aug/weights/best.pt \
-    --data datasets/kjy/data_original.yaml --imgsz 320 --split all       # 외부 데이터셋으로
+    --data datasets/<데이터셋>/data_original.yaml --imgsz 320 --split all   # 다른 데이터셋 전체로
 결과: results/sweep_<실험>_<백엔드>.csv
 """
 from __future__ import annotations

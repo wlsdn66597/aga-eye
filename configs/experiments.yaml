@@ -7,7 +7,7 @@ experiments:
   - {name: A_original_512, data: original, imgsz: 512}
   - {name: A_original_416, data: original, imgsz: 416}
   - {name: A_original_320, data: original, imgsz: 320}
-  # B. 출처별 분할: 이불 덮은 인형 사진을 통째로 테스트로 → 처음 보는 촬영 환경에서의 성능
+  # B. 출처별 분할: SIDS(kjy) 인형 사진(천으로 덮은 사진 포함)을 통째로 테스트로 → 처음 보는 인형에서의 성능
   - {name: B_doll_blanket_416, data: holdout_doll_blanket, imgsz: 416}
   - {name: B_doll_blanket_320, data: holdout_doll_blanket, imgsz: 320}
   # 증강 비교: 좌우 반전·밝기 변형을 켰을 때

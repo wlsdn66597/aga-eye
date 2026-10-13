@@ -27,7 +27,7 @@ class_map:
 source_groups:
   - {name: skt_doll, pattern: '^\d+_png'}                   # skt/baby_posture 인형 사진
   - {name: real_baby, pattern: '^(Prone|Sideways|Supine)_'}  # 실제 아기 사진
-  - {name: doll_blanket, pattern: '^IMG_\d+'}               # 이불 덮은 인형 연속 촬영
+  - {name: doll_blanket, pattern: '^IMG_\d+'}               # SIDS(kjy) 인형 연속 촬영 (회색 천으로 덮은 사진 포함)
   - {name: bassinet, pattern: '^[0-9A-Fa-f]{8}-'}           # 바구니 침대를 위에서 찍은 사진
 default_group: other
 

@@ -58,9 +58,15 @@ def test_prepare_remaps_and_splits(tmp_path):
     assert not set(test_files) & set(train_files)
 
 
-def test_external_kjy_style_dataset(tmp_path):
-    """kjy처럼 다른 라벨 방식의 데이터셋을 configs/dataset_kjy.yaml로 정리하고 전체 사진으로 평가해요."""
+def test_other_label_scheme_dataset_with_split_all(tmp_path):
+    """라벨 방식이 다른 데이터셋을 class_map으로 정리하고 전체 사진(split=all)으로 평가해요."""
     raw, out = tmp_path / "raw", tmp_path / "out"
+    config = tmp_path / "dataset_other.yaml"
+    config.write_text(yaml.safe_dump({
+        "raw_dir": str(raw), "out_dir": str(out),
+        "classes": ["supine", "side", "prone", "airway_visible", "airway_covered"],
+        "class_map": {"normal": "supine", "overturn": "prone", "covered_face": "airway_covered"},
+        "source_groups": [], "default_group": "other", "holdout_groups": []}), encoding="utf-8")
     names = ["covered_face", "normal", "overturn"]
     for split, items in {"train": {"IMG_1.jpg": "1 0.5 0.5 0.4 0.8", "IMG_2.jpg": "0 0.5 0.5 0.4 0.8"},
                          "test": {"IMG_3.jpg": "2 0.5 0.5 0.4 0.8"}}.items():
@@ -71,8 +77,7 @@ def test_external_kjy_style_dataset(tmp_path):
             (raw / split / "labels" / (Path(name).stem + ".txt")).write_text(label)
     (raw / "data.yaml").write_text(yaml.safe_dump({"names": names, "nc": 3}))
 
-    load_script("prepare_dataset").main(["--config", "configs/dataset_kjy.yaml",
-                                         "--raw", str(raw), "--out", str(out)])
+    load_script("prepare_dataset").main(["--config", str(config)])
     ev = load_script("evaluate")
     data = out / "data_original.yaml"
     imgs = ev.split_images(data, "all")

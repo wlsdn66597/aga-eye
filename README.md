@@ -31,7 +31,10 @@ PC에서 정확도를 잴 때와 파이에서 실제로 돌릴 때 **같은 판�
 
 - 위에서 내려다본 아기·인형 사진에 **몸 박스(자세)**와 **얼굴 박스(코·입 상태)**가 함께 라벨링돼 있어요.
 - v1은 학습 2,198 / 검증 274 / 테스트 273장이에요. 모든 사진이 **512×512로 늘려 맞춰져** 있어서 입력 크기는 512가 최대예요. 압축 파일은 대략 100~200MB예요.
-- 여러 공개 데이터셋을 모은 것이에요. 이미 들어 있는 [skt/baby_posture](https://universe.roboflow.com/skt/baby_posture)나 [Baby-Detection](https://universe.roboflow.com/home-zg10t/baby-detection-wabjm)을 따로 추가하면 같은 사진이 중복돼요.
+- 여러 공개 데이터셋을 모은 것이에요. 아래 데이터셋은 이미 들어 있어서, 따로 추가하면 같은 사진이 중복돼요. 외부 테스트로도 쓸 수 없어요.
+  - [SIDS (kjy)](https://universe.roboflow.com/kjy-5agtz/sids-vrari): `IMG_` 출처 1,462장이 이 데이터셋이에요. 파일명과 픽셀이 같은 걸 확인했어요.
+  - [Baby-Detection](https://universe.roboflow.com/home-zg10t/baby-detection-wabjm): 실제 아기 사진(`Prone_`·`Sideways_`·`Supine_`)
+  - [skt/baby_posture](https://universe.roboflow.com/skt/baby_posture): 일부(약 30장)만 들어 있어요.
 - 사진은 레포에 넣지 않아요. 아래 방법으로 각자 받아요.
 
 원본 클래스는 `scripts/prepare_dataset.py`가 아래처럼 정리해요 (`configs/dataset.yaml`).
@@ -51,7 +54,7 @@ PC에서 정확도를 잴 때와 파이에서 실제로 돌릴 때 **같은 판�
 |---|---|---|
 | `skt_doll` | `1190_png...` | skt/baby_posture 인형 사진 (흑백 야간 포함) |
 | `real_baby` | `Prone_12...`, `Sideways_...`, `Supine_...` | 실제 아기 사진 |
-| `doll_blanket` | `IMG_8761...` | 이불 덮은 인형 연속 촬영 |
+| `doll_blanket` | `IMG_8761...` | SIDS(kjy) 인형 연속 촬영. 회색 천으로 덮은 사진 포함. 엎드리지 않은 얼굴 가림 사진은 거의 여기에만 있어요 |
 | `bassinet` | `06695D11-...` | 바구니 침대를 위에서 찍은 사진 |
 | `other` | 그 외 | |
 
@@ -129,7 +132,7 @@ tail -f train.log
 | 실험 | 내용 | 알 수 있는 것 |
 |---|---|---|
 | `A_original_512/416/320` | 원래 분할, 입력 크기별 | 기본 성능, 파이 4용으로 입력을 얼마나 줄여도 되는지 |
-| `B_doll_blanket_416/320` | 이불 덮은 인형 사진을 통째로 테스트로 | **처음 보는 촬영 환경**에서의 성능 (우리 인형 테스트에 가까운 추정) |
+| `B_doll_blanket_416/320` | SIDS(kjy) 인형 사진(천으로 덮은 사진 포함)을 통째로 테스트로 | **처음 보는 인형**에서의 성능 (우리 인형 테스트에 가까운 추정) |
 | `A_original_416_aug` | 좌우 반전·밝기 변형 켬 | 증강이 도움이 되는지 |
 | `A_original_320_aug` | 320 + 증강 | 파이 4에 올릴 후보 |
 
@@ -184,25 +187,15 @@ python scripts/run_experiments.py --skip-train --no-export
 ```
 테스트 세트로 고른 기준이라 테스트 점수가 실제보다 약간 좋게 나와요. 직접 찍은 영상으로 다시 확인하세요.
 
-### 외부 테스트: 처음 보는 인형 (SIDS, kjy)
-[SIDS (kjy)](https://universe.roboflow.com/kjy-5agtz/sids-vrari)는 Baby-Position과 다른 인형을 위에서 찍은 1,459장이에요.
-- 클래스: 정상 / 뒤집힘 / 회색 천으로 덮음 (CC BY 4.0)
-- 학습에 쓰지 않은 인형·천이라, 우리 인형으로 테스트할 때와 비슷한 조건의 성능을 볼 수 있어요.
-- kjy는 인형 전체에 박스 하나를 그리는 방식이라, 박스 지표 대신 **사진 단위 위험 판정**만 비교해요.
-- 클래스는 이렇게 바꿔요: 정상 → 바로 누움, 뒤집힘 → 엎드림, 천으로 덮음 → 코·입 가림 (`configs/dataset_kjy.yaml`)
-
-```bash
-python scripts/download_dataset.py --config configs/dataset_kjy.yaml
-```
-```bash
-python scripts/prepare_dataset.py --config configs/dataset_kjy.yaml
-```
+### 다른 데이터셋 전체로 평가하기
+직접 찍은 테스트 세트처럼 다른 데이터셋을 통째로 평가할 때는 `--split all`을 써요.
+- 학습·검증·테스트로 나뉜 사진을 모두 합쳐서 사진 단위 판정만 평가해요.
+- 데이터셋 설정 파일은 `configs/dataset.yaml`을 복사해서 `roboflow`, `raw_dir`, `out_dir`, `class_map`만 바꾸면 돼요.
 ```bash
 python scripts/evaluate.py --weights runs/train/A_original_320_aug/weights/best.pt \
-    --data datasets/kjy/data_original.yaml --imgsz 320 --split all --name kjy_A_original_320_aug
+    --data datasets/<데이터셋>/data_original.yaml --imgsz 320 --split all --name <결과이름>
 ```
-`--split all`은 학습·검증·테스트로 나뉜 사진을 모두 합쳐 평가한다는 뜻이에요.
-기준값을 바꿔 보려면 `sweep_thresholds.py`에 같은 `--weights --data --imgsz --split all`을 넘기면 돼요.
+기준값 비교도 같은 옵션(`--weights --data --imgsz --split all`)을 `sweep_thresholds.py`에 넘기면 돼요.
 
 ---
 
