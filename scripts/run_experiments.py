@@ -94,7 +94,8 @@ def main(argv=None) -> None:
             result["weights"] = str(best)
             result["box"] = box_metrics(best, data, exp["imgsz"], name=name)
             result["image_level"] = image_level(best, data, "test", exp["imgsz"],
-                                                edge["conf_body"], edge["conf_airway"])
+                                                edge["conf_body"], edge["conf_airway"],
+                                                covered_without_body=edge.get("covered_without_body", False))
             if not args.no_export:
                 result["onnx"] = str(export(best, exp["imgsz"], name=name)[0])
         except Exception as e:  # 한 실험이 실패해도 나머지는 계속

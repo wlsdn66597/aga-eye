@@ -17,4 +17,5 @@ KOREAN = {
     "unavailable": "분석 불가",
     "no_baby": "아기 안 보임",
     "dark": "너무 어두움",
+    "body_not_found": "몸은 안 보이고 가려진 얼굴만 보임",
 }

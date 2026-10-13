@@ -159,6 +159,25 @@ python scripts/evaluate.py --weights models/agaeye_A_original_320.onnx --backend
     --data datasets/agaeye/data_original.yaml --imgsz 320
 ```
 
+### 판정 기준 정하기 (재학습 없이)
+사진 단위 판정은 `configs/edge.yaml`의 기준값을 써요.
+- 몸 박스 신뢰도 `conf_body`, 코·입 박스 신뢰도 `conf_airway`
+- 몸 박스 없이 코·입 가림만 잡혀도 인정할지 `covered_without_body`
+
+기준이 너무 엄격하면 정밀도는 높고 재현율은 낮게 나와요.
+아래 명령은 예측을 한 번만 돌리고, 84개 조합을 다시 판정해서 비교해요.
+```bash
+python scripts/sweep_thresholds.py --exp A_original_416 A_original_320
+```
+- 지금 설정, 추천 조합(위험 재현율 90% 이상 중 정밀도 최고), 재현율 상위 10개가 나와요.
+- 전체 조합은 `results/sweep_<실험>_<백엔드>.csv`에 저장돼요.
+
+추천 값을 `configs/edge.yaml`에 넣고, 재학습 없이 평가만 다시 돌리면 `summary.csv`가 새 기준으로 바뀌어요.
+```bash
+python scripts/run_experiments.py --skip-train --no-export
+```
+테스트 세트로 고른 기준이라 테스트 점수가 실제보다 약간 좋게 나와요. 직접 찍은 영상으로 다시 확인하세요.
+
 ---
 
 ## 5. 노트북에서 실시간 실행 (웹캠·영상)
@@ -170,6 +189,7 @@ python edge/run_edge.py --source 녹화.mp4 --model models/agaeye_A_original_416
 ```
 - 영상 파일은 영상 안의 시간을 기준으로 5초를 재요. 그래서 빨리 돌려도 판정 결과는 같아요.
 - 판정 기준(신뢰도, 밝기, 5초·3초)은 `configs/edge.yaml`에 있어요.
+- `miss_tolerance_s`(기본 1초): 엎드림·얼굴 가림이 이보다 짧게 안 잡히는 건 탐지가 깜빡인 것으로 보고 5초 타이머를 유지해요. 0이면 한 프레임만 놓쳐도 타이머가 처음부터 다시 시작해요.
 
 ## 6. 웹 알림 서버
 
@@ -214,7 +234,7 @@ agaeye/            공통 코드 (파이에서도 그대로 사용, PyTorch 불�
   notify.py          서버 전송 (별도 스레드, 끊기면 최대 100건 보관)
   sources.py         웹캠·영상 파일·파이 카메라 입력
   imaging.py         한글 경로 이미지 읽기, 밝기, 스냅샷, 화면 표시
-scripts/           학습 PC용: 받기 → 정리 → 학습 → 평가 → 내보내기 → 실험 자동 실행
+scripts/           학습 PC용: 받기 → 정리 → 학습 → 평가 → 내보내기 → 실험 자동 실행, 판정 기준 비교
 edge/run_edge.py   실시간 실행
 server/            웹 알림 개발 서버 + 대시보드
 configs/           데이터셋·학습·실험·엣지 설정

@@ -6,14 +6,17 @@ infer_fps: 3              # 초당 추론 횟수
 camera_size: [640, 480]   # 카메라 해상도
 
 # 판정 기준 (scripts/evaluate.py도 같은 값을 써요)
+# 값 정하기: python scripts/sweep_thresholds.py --exp <실험이름> 결과를 보고 고르세요
 conf_body: 0.5            # 몸(자세) 박스 최소 신뢰도
 conf_airway: 0.4          # 얼굴(코·입) 박스 최소 신뢰도
+covered_without_body: false  # true면 몸 박스가 없어도 코·입 가림 박스만으로 얼굴 가림으로 봄
 min_brightness: 40        # 평균 밝기(0~255)가 이보다 낮으면 '분석 불가(어두움)'
 
 risk:
   risk_threshold_s: 5.0   # 엎드림·얼굴 가림이 이만큼 이어지면 위험 (1차 알림)
   clear_threshold_s: 3.0  # 위험 중 정상이 이만큼 이어지면 위험 종료
   gap_tolerance_s: 1.0    # 이보다 짧은 분석 공백은 타이머를 유지 (0이면 명세서대로 즉시 초기화)
+  miss_tolerance_s: 1.0   # 조건이 이보다 짧게 안 잡히면 깜빡임으로 보고 타이머 유지 (0이면 한 프레임에 초기화)
 
 server:
   url: null               # 예: http://192.168.0.10:8000  (null이면 콘솔에만 출력)

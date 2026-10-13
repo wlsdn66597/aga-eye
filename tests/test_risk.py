@@ -5,6 +5,7 @@ NORMAL = FrameDecision(valid=True, posture="supine", airway="airway_visible")
 PRONE = FrameDecision(valid=True, posture="prone", airway="airway_covered")
 COVERED = FrameDecision(valid=True, posture="supine", airway="airway_covered")
 NO_BABY = FrameDecision(valid=False, reason="no_baby")
+COVERED_ONLY = FrameDecision(valid=True, reason="body_not_found", airway="airway_covered")
 
 
 def run(monitor, frames, start=0.0, step=0.5):
@@ -89,6 +90,45 @@ def test_unavailable_status_when_no_baby():
     m = RiskMonitor()
     run(m, [(NORMAL, 1), (NO_BABY, 2)])
     assert m.status == "unavailable" and m.reason == "no_baby"
+
+
+def test_brief_miss_keeps_timer():
+    m = RiskMonitor(RiskConfig(miss_tolerance_s=1.0))
+    events, _ = run(m, [(PRONE, 3), (NORMAL, 0.5), (PRONE, 2.5)])
+    started = [e for e in events if e.kind == "risk_started"]
+    assert len(started) == 1 and started[0].started_at == 0.0
+
+
+def test_brief_miss_keeps_caution_status():
+    m = RiskMonitor(RiskConfig(miss_tolerance_s=1.0))
+    run(m, [(PRONE, 2), (NORMAL, 0.5)])
+    assert m.status == "caution"
+
+
+def test_long_miss_resets_timer():
+    m = RiskMonitor(RiskConfig(miss_tolerance_s=1.0))
+    events, _ = run(m, [(PRONE, 3), (NORMAL, 1.5), (PRONE, 3)])
+    assert kinds(events) == []
+
+
+def test_strict_miss_tolerance_resets_on_one_frame():
+    m = RiskMonitor(RiskConfig(miss_tolerance_s=0.0))
+    events, _ = run(m, [(PRONE, 3), (NORMAL, 0.5), (PRONE, 2.5)])
+    assert kinds(events) == []
+
+
+def test_confirmation_happens_on_a_frame_with_the_condition():
+    m = RiskMonitor(RiskConfig(miss_tolerance_s=1.0))
+    events, _ = run(m, [(PRONE, 5), (NORMAL, 0.5)])  # 5초가 되는 프레임에 안 잡힘
+    assert kinds(events) == []
+    events, _ = run(m, [(PRONE, 0.5)], start=5.5)
+    assert kinds(events) == ["risk_started"]
+
+
+def test_covered_face_without_body_starts_face_risk():
+    m = RiskMonitor()
+    events, _ = run(m, [(COVERED_ONLY, 6)])
+    assert [e.risk_type for e in events if e.kind == "risk_started"] == ["face_covered"]
 
 
 def test_threshold_change_applies():

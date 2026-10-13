@@ -6,6 +6,8 @@
   보호자가 알림을 확인했다고 끝나지는 않아요.
 - 분석 불가(아기 안 보임·어두움)가 gap_tolerance_s보다 길어지면 조건 타이머를 초기화해요.
   0으로 두면 명세서처럼 공백이 생기는 즉시 초기화해요.
+- 조건이 miss_tolerance_s 이하로 잠깐 안 잡히는 건 탐지가 깜빡인 것으로 보고 타이머를 유지해요.
+  그보다 오래 안 잡혀야 '해소'로 봐요. 0으로 두면 한 프레임만 안 잡혀도 초기화해요.
 - 2차 알림(1차 후 15초 미확인)은 보호자 확인 여부를 아는 서버가 맡아요.
 """
 from __future__ import annotations
@@ -24,6 +26,7 @@ class RiskConfig:
     risk_threshold_s: float = 5.0
     clear_threshold_s: float = 3.0
     gap_tolerance_s: float = 1.0
+    miss_tolerance_s: float = 1.0
 
 
 @dataclass
@@ -50,7 +53,8 @@ class RiskMonitor:
         self.status = "unavailable"
         self.reason = "starting"
         self.active: Optional[RiskEvent] = None  # 진행 중인 위험 이벤트
-        self._since: Dict[str, Optional[float]] = {c: None for c in CONDITIONS}
+        self._since: Dict[str, Optional[float]] = {c: None for c in CONDITIONS}    # 조건이 시작된 시각
+        self._last_on: Dict[str, Optional[float]] = {c: None for c in CONDITIONS}  # 조건이 마지막으로 잡힌 시각
         self._last_valid: Optional[float] = None
         self._normal_since: Optional[float] = None
 
@@ -66,6 +70,7 @@ class RiskMonitor:
             if self._last_valid is None or ts - self._last_valid > cfg.gap_tolerance_s:
                 # 연속성이 끊김 → 타이머 초기화
                 self._since = {c: None for c in CONDITIONS}
+                self._last_on = {c: None for c in CONDITIONS}
                 self._normal_since = None
                 if self.active is None:
                     self._set_status("unavailable", d.reason, ts, out)
@@ -79,21 +84,23 @@ class RiskMonitor:
             if on[c]:
                 if self._since[c] is None:
                     self._since[c] = ts
-            else:
-                self._since[c] = None
+                self._last_on[c] = ts
+            elif self._since[c] is not None and ts - self._last_on[c] > cfg.miss_tolerance_s:
+                self._since[c] = None  # 잠깐이 아니라 계속 안 잡힘 → 해소
 
         if self.active is None:
             for c in CONDITIONS:
                 start = self._since[c]
-                if start is not None and ts - start >= cfg.risk_threshold_s:
+                # 확정은 조건이 실제로 잡힌 프레임에서 (스냅샷이 위험 장면이 되도록)
+                if on[c] and start is not None and ts - start >= cfg.risk_threshold_s:
                     self.active = RiskEvent(kind="risk_started", ts=ts, event_id=uuid.uuid4().hex,
                                             risk_type=c, started_at=start, confirmed_at=ts)
                     self._normal_since = None
                     out.append(self.active)
                     self._set_status("risk", c, ts, out)
                     return out
-            current = [c for c in CONDITIONS if on[c]]
-            self._set_status("caution" if current else "normal", current[0] if current else "", ts, out)
+            running = [c for c in CONDITIONS if self._since[c] is not None]
+            self._set_status("caution" if running else "normal", running[0] if running else "", ts, out)
             return out
 
         # 위험 진행 중

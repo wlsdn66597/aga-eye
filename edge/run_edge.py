@@ -98,7 +98,8 @@ def main(argv=None) -> None:
                 dets, decision = [], FrameDecision(valid=False, reason="dark")
             else:
                 dets = detector(frame)
-                decision = decide(dets, cfg["conf_body"], cfg["conf_airway"])
+                decision = decide(dets, cfg["conf_body"], cfg["conf_airway"],
+                                  cfg.get("covered_without_body", False))
             infer_ms = (time.perf_counter() - t0) * 1000
 
             for ev in monitor.update(ts, decision):

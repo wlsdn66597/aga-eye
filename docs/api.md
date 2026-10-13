@@ -10,7 +10,7 @@
 
 | 항목 | 값 | 담당 |
 |---|---|---|
-| 위험 기준 시간 | 엎드림·얼굴 가림이 5초 이어지면 위험 (서버 설정으로 변경) | 엣지 `agaeye/risk.py` |
+| 위험 기준 시간 | 엎드림·얼굴 가림이 5초 이어지면 위험 (서버 설정으로 변경). 1초 이하로 잠깐 안 잡히는 건 이어진 것으로 봄 | 엣지 `agaeye/risk.py` |
 | 위험 종료 | 정상 판정이 3초 이어지면 종료 (보호자 확인으로는 종료 안 됨) | 엣지 |
 | 1차 알림 | 위험 시작을 받으면 바로 | 서버 |
 | 2차 알림 | 1차 후 15초 동안 확인이 없고 위험이 계속되면 모든 보호자에게. 그 전에 위험이 끝나면 보내지 않음 | 서버 |
@@ -28,6 +28,7 @@
   "ts": 1760342400.12,
   "status": "normal",            // normal 정상 / caution 주의 / risk 위험 / unavailable 분석 불가
   "reason": "",                  // 주의·위험: prone / face_covered, 분석 불가: no_baby / dark
+                                 // (covered_without_body일 때 몸 없이 가린 얼굴만 보이면 body_not_found)
   "posture": "supine",           // supine / side / prone / null
   "airway": "airway_visible",    // airway_visible / airway_covered / null
   "elapsed": {"prone": 0.0, "face_covered": 0.0},   // 조건별로 이어진 시간(초)

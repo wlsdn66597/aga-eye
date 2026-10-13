@@ -54,16 +54,24 @@ def center_inside(inner: Detection, outer: Detection, margin: float = 0.1) -> bo
     return x1 - mx <= cx <= x2 + mx and y1 - my <= cy <= y2 + my
 
 
-def decide(dets: Sequence[Detection], conf_body: float = 0.5, conf_airway: float = 0.4) -> FrameDecision:
+def decide(dets: Sequence[Detection], conf_body: float = 0.5, conf_airway: float = 0.4,
+           covered_without_body: bool = False) -> FrameDecision:
     """아기 1명을 가정하고 판단해요.
 
     - 몸 박스: 신뢰도가 가장 높은 것 1개 → 자세
     - 얼굴 박스: 그 몸 박스 안에 있는 것 중 신뢰도가 가장 높은 것 1개 → 코·입 상태
-    - 몸 박스가 없으면 분석 불가(no_baby)
+    - 몸 박스가 없으면 분석 불가(no_baby).
+      단 covered_without_body=True면, 코·입 가림 박스만 잡혀도 얼굴 가림으로 봐요
+      (이불에 몸이 다 덮이면 몸 박스가 안 잡히는 경우 대비)
     - 얼굴 박스가 없으면 airway=None (얼굴 가림 근거가 없으므로 가림으로 보지 않음)
     """
     bodies = [d for d in dets if d.cls in BODY_CLASSES and d.conf >= conf_body]
     if not bodies:
+        if covered_without_body:
+            covered = [d for d in dets if d.cls == "airway_covered" and d.conf >= conf_airway]
+            if covered:
+                face = max(covered, key=lambda d: d.conf)
+                return FrameDecision(valid=True, reason="body_not_found", airway=face.cls, face=face)
         return FrameDecision(valid=False, reason="no_baby")
     body = max(bodies, key=lambda d: d.conf)
     faces = [d for d in dets

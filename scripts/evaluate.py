@@ -96,27 +96,40 @@ def _ratio(a: int, b: int) -> Optional[float]:
     return a / b if b else None
 
 
-def image_level(weights, data, split: str = "test", imgsz: int = 640, conf_body: float = 0.5,
-                conf_airway: float = 0.4, backend: str = "ultralytics") -> Dict:
-    """사진마다 정답 판정과 모델 판정을 비교해요."""
+def collect(weights, data, split: str = "test", imgsz: int = 640, conf: float = 0.05,
+            backend: str = "ultralytics") -> Dict:
+    """테스트 사진마다 정답 박스와 모델 박스를 모아요. 판정 기준을 여러 번 바꿔 볼 때 한 번만 실행하면 돼요.
+
+    conf보다 높은 기준으로 나중에 거르면, 그 기준으로 바로 추론한 것과 결과가 같아요.
+    """
     weights, data = repo_path(weights), repo_path(data)
     names = data_names(data)
     images = split_images(data, split)
     predict = predict_onnx if backend == "onnx" else predict_ultralytics
-    preds = predict(weights, images, imgsz, min(conf_body, conf_airway))
-
     records_file = Path(yaml.safe_load(data.read_text(encoding="utf-8")).get("path", data.parent)) / "records.json"
     sources = ({r["image"]: r["source"] for r in json.loads(records_file.read_text(encoding="utf-8"))}
                if records_file.exists() else {})
+    return {"weights": str(weights), "data": str(data), "split": split, "imgsz": imgsz, "backend": backend,
+            "images": [p.name for p in images],
+            "sources": [sources.get(p.name, "unknown") for p in images],
+            "gts": [ground_truth(p, names) for p in images],
+            "preds": list(predict(weights, images, imgsz, conf))}
 
+
+def score(col: Dict, conf_body: float = 0.5, conf_airway: float = 0.4,
+          covered_without_body: bool = False) -> Dict:
+    """모아 둔 박스로 사진마다 정답 판정과 모델 판정을 비교해요.
+
+    정답 판정은 몸 박스가 없어도 코·입 가림 박스가 있으면 얼굴 가림으로 봐요 (사진에 실제로 있는 위험).
+    """
     posture_cm = {g: Counter() for g in POSTURE_LABELS}
     airway_cm = {g: Counter() for g in AIRWAY_LABELS}
     risk = Counter()
     by_type = {"prone": Counter(), "face_covered": Counter()}
     by_source = defaultdict(Counter)
-    for img, dets in zip(images, preds):
-        gt = decide(ground_truth(img, names), conf_body=0.0, conf_airway=0.0)
-        pr = decide(dets, conf_body, conf_airway)
+    for source, gt_dets, dets in zip(col["sources"], col["gts"], col["preds"]):
+        gt = decide(gt_dets, conf_body=0.0, conf_airway=0.0, covered_without_body=True)
+        pr = decide(dets, conf_body, conf_airway, covered_without_body)
         posture_cm[gt.posture or "none"][pr.posture or "none"] += 1
         airway_cm[gt.airway or "none"][pr.airway or "none"] += 1
         g_risk, p_risk = gt.risk_type is not None, pr.risk_type is not None
@@ -126,15 +139,16 @@ def image_level(weights, data, split: str = "test", imgsz: int = 640, conf_body:
             t["total"] += 1
             t["exact"] += int(pr.risk_type == gt.risk_type)
             t["any"] += int(p_risk)
-        s = by_source[sources.get(img.name, "unknown")]
+        s = by_source[source]
         s["images"] += 1
         s["risk_correct"] += int(g_risk == p_risk)
 
     tp, fp, fn, tn = (risk[k] for k in ("tp", "fp", "fn", "tn"))
     n_body = sum(sum(posture_cm[g].values()) for g in BODY_CLASSES)
     return {
-        "weights": str(weights), "data": str(data), "split": split, "imgsz": imgsz, "backend": backend,
-        "conf_body": conf_body, "conf_airway": conf_airway, "images": tp + fp + fn + tn,
+        "weights": col["weights"], "data": col["data"], "split": col["split"], "imgsz": col["imgsz"],
+        "backend": col["backend"], "conf_body": conf_body, "conf_airway": conf_airway,
+        "covered_without_body": covered_without_body, "images": tp + fp + fn + tn,
         "posture_accuracy": _ratio(sum(posture_cm[g][g] for g in BODY_CLASSES), n_body),
         "body_missed_rate": _ratio(sum(posture_cm[g]["none"] for g in BODY_CLASSES), n_body),
         "risk": {"accuracy": _ratio(tp + tn, tp + fp + fn + tn), "recall": _ratio(tp, tp + fn),
@@ -147,6 +161,14 @@ def image_level(weights, data, split: str = "test", imgsz: int = 640, conf_body:
         "by_source": {k: {"images": v["images"], "risk_accuracy": _ratio(v["risk_correct"], v["images"])}
                       for k, v in sorted(by_source.items())},
     }
+
+
+def image_level(weights, data, split: str = "test", imgsz: int = 640, conf_body: float = 0.5,
+                conf_airway: float = 0.4, backend: str = "ultralytics",
+                covered_without_body: bool = False) -> Dict:
+    """사진마다 정답 판정과 모델 판정을 비교해요 (collect + score)."""
+    col = collect(weights, data, split, imgsz, min(conf_body, conf_airway), backend)
+    return score(col, conf_body, conf_airway, covered_without_body)
 
 
 def box_metrics(weights, data, imgsz: int, split: str = "test", name: str = "eval") -> Dict:
@@ -210,7 +232,8 @@ def main(argv=None) -> None:
     if not args.no_box:
         result["box"] = box_metrics(weights, args.data, args.imgsz, args.split, name)
     result["image_level"] = image_level(weights, args.data, args.split, args.imgsz,
-                                        edge["conf_body"], edge["conf_airway"], args.backend)
+                                        edge["conf_body"], edge["conf_airway"], args.backend,
+                                        edge.get("covered_without_body", False))
     print_report(result["image_level"])
     RESULTS.mkdir(exist_ok=True)
     out = RESULTS / f"eval_{name}_{args.backend}.json"

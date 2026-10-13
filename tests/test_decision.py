@@ -37,3 +37,16 @@ def test_face_box_outside_body_is_ignored():
 def test_missing_face_box_is_not_treated_as_covered():
     d = decide([det("side", 0.9)])
     assert d.valid and d.airway is None and d.risk_type is None
+
+
+def test_covered_face_without_body_is_ignored_by_default():
+    assert not decide([det("airway_covered", 0.9)]).valid
+
+
+def test_covered_face_without_body_counts_when_enabled():
+    d = decide([det("airway_covered", 0.9)], covered_without_body=True)
+    assert d.valid and d.posture is None and d.risk_type == "face_covered" and d.reason == "body_not_found"
+
+
+def test_visible_face_without_body_stays_unavailable():
+    assert not decide([det("airway_visible", 0.9)], covered_without_body=True).valid
