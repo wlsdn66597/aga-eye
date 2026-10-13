@@ -30,6 +30,7 @@ PC에서 정확도를 잴 때와 파이에서 실제로 돌릴 때 **같은 판�
 **[Baby-Position](https://universe.roboflow.com/jennifer-verona-uzduw/baby-position-esrva)** (Roboflow Universe, v1, 2,745장, CC BY 4.0)
 
 - 위에서 내려다본 아기·인형 사진에 **몸 박스(자세)**와 **얼굴 박스(코·입 상태)**가 함께 라벨링돼 있어요.
+- v1은 학습 2,198 / 검증 274 / 테스트 273장이에요. 모든 사진이 **512×512로 늘려 맞춰져** 있어서 입력 크기는 512가 최대예요. 압축 파일은 대략 100~200MB예요.
 - 여러 공개 데이터셋을 모은 것이에요. 이미 들어 있는 [skt/baby_posture](https://universe.roboflow.com/skt/baby_posture)나 [Baby-Detection](https://universe.roboflow.com/home-zg10t/baby-detection-wabjm)을 따로 추가하면 같은 사진이 중복돼요.
 - 사진은 레포에 넣지 않아요. 아래 방법으로 각자 받아요.
 
@@ -65,8 +66,10 @@ python -m venv .venv
 ```
 가상환경 켜기: Windows는 `.venv\Scripts\activate`, Linux는 `source .venv/bin/activate`
 
-1. [pytorch.org](https://pytorch.org/get-started/locally/)에서 OS와 CUDA 버전에 맞는 PyTorch 설치 명령을 복사해 먼저 실행해요.
-2. 나머지를 설치하고 GPU가 잡히는지 확인해요.
+1. **PyTorch를 먼저** 설치해요. 순서가 바뀌면 GPU가 안 잡히는 CPU 버전이 깔릴 수 있어요.
+   - Linux: `pip install torch torchvision` (Linux용 기본 패키지에 CUDA가 들어 있어요)
+   - Windows: [pytorch.org](https://pytorch.org/get-started/locally/)에서 CUDA 버전용 설치 명령을 복사해요.
+2. 나머지를 설치하고 GPU가 잡히는지 확인해요. `True NVIDIA GeForce RTX 4090`이 나오면 돼요.
 ```bash
 pip install -r requirements.txt
 python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
@@ -74,19 +77,27 @@ python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_
 
 ## 2. 데이터 받기
 
-[Roboflow](https://app.roboflow.com)에 가입하고 Settings → API Keys에서 Private API Key를 복사해요.
-키는 코드나 깃에 넣지 말고 환경변수로만 써요.
+[Roboflow](https://app.roboflow.com)에 가입해요. 다음 두 방법 중 하나를 쓰면 돼요.
 
-```powershell
-# Windows PowerShell
-$env:ROBOFLOW_API_KEY="여기에_키"
-python scripts/download_dataset.py
-```
+**방법 A. curl (브라우저 없는 원격 서버에 편해요)**
+
+데이터셋 페이지 → Download Dataset → 형식 **YOLOv8** → Show download code → **Terminal**에 나오는 링크를 써요.
+Roboflow가 보여 주는 명령은 현재 폴더에 바로 압축을 풀어요. 그래서 아래처럼 받을 위치를 정해 주세요.
+링크에 키가 들어 있으니 공유하거나 깃에 올리지 마세요.
 ```bash
-# Linux
+curl -L "Roboflow가_보여준_링크" --create-dirs -o datasets/raw/roboflow.zip
+python -m zipfile -e datasets/raw/roboflow.zip datasets/raw/baby-position-v1
+```
+Windows PowerShell에서는 `curl` 대신 `curl.exe`라고 써야 해요.
+압축을 풀고 나면 `datasets/raw/baby-position-v1/data.yaml`이 있어야 해요.
+
+**방법 B. API 키**
+
+Settings → API Keys에서 Private API Key를 복사해 환경변수로 넣어요.
+```bash
 ROBOFLOW_API_KEY=여기에_키 python scripts/download_dataset.py
 ```
-웹에서 직접 받아도 돼요: 데이터셋 페이지 → Download Dataset → **YOLOv8** → zip을 `datasets/raw/baby-position-v1/`에 풀기.
+Windows PowerShell: `$env:ROBOFLOW_API_KEY="여기에_키"; python scripts/download_dataset.py`
 
 ## 3. 데이터 정리
 
@@ -107,10 +118,17 @@ python scripts/run_experiments.py --only A_original_416 --set epochs=3
 ```bash
 python scripts/run_experiments.py
 ```
+원격(SSH)으로 돌린다면, 접속이 끊겨도 학습이 계속되게 백그라운드로 돌리고 로그를 보세요 (Linux).
+```bash
+nohup python scripts/run_experiments.py > train.log 2>&1 &
+```
+```bash
+tail -f train.log
+```
 
 | 실험 | 내용 | 알 수 있는 것 |
 |---|---|---|
-| `A_original_640/416/320` | 원래 분할, 입력 크기별 | 기본 성능, 파이 4용으로 입력을 얼마나 줄여도 되는지 |
+| `A_original_512/416/320` | 원래 분할, 입력 크기별 | 기본 성능, 파이 4용으로 입력을 얼마나 줄여도 되는지 |
 | `B_doll_blanket_416/320` | 이불 덮은 인형 사진을 통째로 테스트로 | **처음 보는 촬영 환경**에서의 성능 (우리 인형 테스트에 가까운 추정) |
 | `A_original_416_aug` | 좌우 반전·밝기 변형 켬 | 증강이 도움이 되는지 |
 

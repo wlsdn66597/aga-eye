@@ -3,7 +3,8 @@
 # overrides: train.yaml 값을 덮어씀
 experiments:
   # A. 원래 분할 (연속 사진이 학습·테스트에 섞여 점수가 높게 나올 수 있음)
-  - {name: A_original_640, data: original, imgsz: 640}
+  #    데이터셋 사진이 512×512라 512가 최대 크기예요
+  - {name: A_original_512, data: original, imgsz: 512}
   - {name: A_original_416, data: original, imgsz: 416}
   - {name: A_original_320, data: original, imgsz: 320}
   # B. 출처별 분할: 이불 덮은 인형 사진을 통째로 테스트로 → 처음 보는 촬영 환경에서의 성능

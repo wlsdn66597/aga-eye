@@ -3,7 +3,7 @@
 model: yolov8n.pt
 epochs: 200
 patience: 50
-imgsz: 640
+imgsz: 512      # Baby-Position v1 사진이 512×512라 더 키워도 정보가 늘지 않아요
 batch: 16
 optimizer: Adam
 lr0: 0.001
