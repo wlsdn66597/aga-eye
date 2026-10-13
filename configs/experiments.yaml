@@ -1,0 +1,13 @@
+# scripts/run_experiments.py가 차례로 실행하는 실험
+# data: prepare_dataset.py가 만든 data_<이름>.yaml의 <이름>
+# overrides: train.yaml 값을 덮어씀
+experiments:
+  # A. 원래 분할 (연속 사진이 학습·테스트에 섞여 점수가 높게 나올 수 있음)
+  - {name: A_original_640, data: original, imgsz: 640}
+  - {name: A_original_416, data: original, imgsz: 416}
+  - {name: A_original_320, data: original, imgsz: 320}
+  # B. 출처별 분할: 이불 덮은 인형 사진을 통째로 테스트로 → 처음 보는 촬영 환경에서의 성능
+  - {name: B_doll_blanket_416, data: holdout_doll_blanket, imgsz: 416}
+  - {name: B_doll_blanket_320, data: holdout_doll_blanket, imgsz: 320}
+  # 증강 비교: 좌우 반전·밝기 변형을 켰을 때
+  - {name: A_original_416_aug, data: original, imgsz: 416, overrides: {fliplr: 0.5, hsv_v: 0.4}}

@@ -1,0 +1,26 @@
+# 실시간 실행 설정 (라즈베리파이 4 / 노트북)
+model: models/agaeye_A_original_416.onnx
+imgsz: 416                # 모델을 내보낼 때와 같은 크기
+threads: 4                # ONNX Runtime 스레드 수 (파이 4는 코어 4개)
+infer_fps: 3              # 초당 추론 횟수
+camera_size: [640, 480]   # 카메라 해상도
+
+# 판정 기준 (scripts/evaluate.py도 같은 값을 써요)
+conf_body: 0.5            # 몸(자세) 박스 최소 신뢰도
+conf_airway: 0.4          # 얼굴(코·입) 박스 최소 신뢰도
+min_brightness: 40        # 평균 밝기(0~255)가 이보다 낮으면 '분석 불가(어두움)'
+
+risk:
+  risk_threshold_s: 5.0   # 엎드림·얼굴 가림이 이만큼 이어지면 위험 (1차 알림)
+  clear_threshold_s: 3.0  # 위험 중 정상이 이만큼 이어지면 위험 종료
+  gap_tolerance_s: 1.0    # 이보다 짧은 분석 공백은 타이머를 유지 (0이면 명세서대로 즉시 초기화)
+
+server:
+  url: null               # 예: http://192.168.0.10:8000  (null이면 콘솔에만 출력)
+  device_id: crib-01
+  heartbeat_s: 2.0        # 생존 신호 주기 (서버는 8초간 없으면 연결 끊김으로 봄)
+
+snapshot:
+  enabled: true
+  jpeg_quality: 80
+  max_width: 640
