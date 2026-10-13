@@ -131,6 +131,7 @@ tail -f train.log
 | `A_original_512/416/320` | 원래 분할, 입력 크기별 | 기본 성능, 파이 4용으로 입력을 얼마나 줄여도 되는지 |
 | `B_doll_blanket_416/320` | 이불 덮은 인형 사진을 통째로 테스트로 | **처음 보는 촬영 환경**에서의 성능 (우리 인형 테스트에 가까운 추정) |
 | `A_original_416_aug` | 좌우 반전·밝기 변형 켬 | 증강이 도움이 되는지 |
+| `A_original_320_aug` | 320 + 증강 | 파이 4에 올릴 후보 |
 
 **A 점수를 읽을 때 주의할 점:** 원래 분할에는 연속 촬영 사진이 학습과 테스트에 섞여 있어요.
 그래서 A 점수는 실제보다 높게 나와요. A와 B의 차이가 바로 그 부풀려진 정도예요.
@@ -155,7 +156,7 @@ tail -f train.log
 박스 혼동행렬 같은 그래프는 `runs/val/<이름>/`에 저장돼요.
 파이와 똑같은 ONNX 추론 코드로 다시 평가하려면 이렇게 실행해요.
 ```bash
-python scripts/evaluate.py --weights models/agaeye_A_original_320.onnx --backend onnx \
+python scripts/evaluate.py --weights models/agaeye_A_original_320_aug.onnx --backend onnx \
     --data datasets/agaeye/data_original.yaml --imgsz 320
 ```
 
@@ -169,6 +170,11 @@ python scripts/evaluate.py --weights models/agaeye_A_original_320.onnx --backend
 ```bash
 python scripts/sweep_thresholds.py --exp A_original_416 A_original_320
 ```
+지금 기본값(몸 0.2, 얼굴 0.15, 몸 없이 가림 인정)은 `A_original_416_aug` 비교 결과로 골랐어요.
+- 처음 값(0.5 / 0.4): 위험 재현율 66.7%
+- 지금 값: 위험 재현율 93.6%, 정밀도 97.1%
+
+5초 규칙이 몇 프레임짜리 오탐은 걸러 주니, 기준은 놓치지 않는 쪽(재현율)으로 기울이는 게 맞아요.
 - 지금 설정, 추천 조합(위험 재현율 90% 이상 중 정밀도 최고), 재현율 상위 10개가 나와요.
 - 전체 조합은 `results/sweep_<실험>_<백엔드>.csv`에 저장돼요.
 
@@ -215,7 +221,7 @@ git clone https://github.com/wlsdn66597/aga-eye.git && cd aga-eye
 python3 -m venv --system-site-packages .venv && source .venv/bin/activate
 pip install onnxruntime
 mkdir -p models   # PC에서 만든 .onnx 파일을 여기로 복사 (예: scp)
-python edge/run_edge.py --source picamera2 --model models/agaeye_A_original_320.onnx --imgsz 320 \
+python edge/run_edge.py --source picamera2 --model models/agaeye_A_original_320_aug.onnx --imgsz 320 \
     --server http://<서버 IP>:8000
 ```
 - **입력 크기:** 파이 4는 느려서 입력 320이나 416을 추천해요. Ultralytics 측정으로 YOLOv8n 640 입력은 ONNX 기준 장당 약 560ms예요. `configs/edge.yaml`의 `model`, `imgsz`도 맞춰 주세요.

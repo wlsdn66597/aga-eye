@@ -1,15 +1,17 @@
 # 실시간 실행 설정 (라즈베리파이 4 / 노트북)
-model: models/agaeye_A_original_416.onnx
-imgsz: 416                # 모델을 내보낼 때와 같은 크기
+model: models/agaeye_A_original_320_aug.onnx  # 파이 4 후보. 다른 모델을 쓰면 imgsz도 같이 바꾸세요
+imgsz: 320                # 모델을 내보낼 때와 같은 크기
 threads: 4                # ONNX Runtime 스레드 수 (파이 4는 코어 4개)
 infer_fps: 3              # 초당 추론 횟수
 camera_size: [640, 480]   # 카메라 해상도
 
 # 판정 기준 (scripts/evaluate.py도 같은 값을 써요)
 # 값 정하기: python scripts/sweep_thresholds.py --exp <실험이름> 결과를 보고 고르세요
-conf_body: 0.5            # 몸(자세) 박스 최소 신뢰도
-conf_airway: 0.4          # 얼굴(코·입) 박스 최소 신뢰도
-covered_without_body: false  # true면 몸 박스가 없어도 코·입 가림 박스만으로 얼굴 가림으로 봄
+# 지금 값은 A_original_416_aug 비교 결과에서 골랐어요 (몸 0.10~0.25, 얼굴 0.10~0.15 구간의 가운데).
+# 그 구간에서 위험 재현율 93.6%, 정밀도 97.1% (테스트 세트 기준이라 실제보다 약간 낙관적)
+conf_body: 0.2            # 몸(자세) 박스 최소 신뢰도
+conf_airway: 0.15         # 얼굴(코·입) 박스 최소 신뢰도
+covered_without_body: true   # 몸 박스가 없어도 코·입 가림 박스만으로 얼굴 가림으로 봄 (이불에 몸이 다 덮일 때 대비)
 min_brightness: 40        # 평균 밝기(0~255)가 이보다 낮으면 '분석 불가(어두움)'
 
 risk:
