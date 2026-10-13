@@ -31,6 +31,8 @@ def parse_args(argv=None):
     ap.add_argument("--device-id")
     ap.add_argument("--show", action="store_true", help="화면에 결과 표시 (q로 종료)")
     ap.add_argument("--max-seconds", type=float, help="이 시간(입력 기준)만큼만 실행")
+    ap.add_argument("--stats-every", type=float, default=10.0,
+                    help="이 간격(초)마다 평균 추론 시간·처리 속도 출력 (0이면 끔)")
     return ap.parse_args(argv)
 
 
@@ -78,6 +80,7 @@ def main(argv=None) -> None:
     first_ts = None
     last_infer = None
     infer_ms = 0.0
+    stats_start, stats_ms = None, []  # 속도 출력용
     try:
         while True:
             item = source.read()
@@ -101,6 +104,14 @@ def main(argv=None) -> None:
                 decision = decide(dets, cfg["conf_body"], cfg["conf_airway"],
                                   cfg.get("covered_without_body", False))
             infer_ms = (time.perf_counter() - t0) * 1000
+            if args.stats_every > 0:
+                stats_start = ts if stats_start is None else stats_start
+                stats_ms.append(infer_ms)
+                if ts - stats_start >= args.stats_every:
+                    print(f"[{ts - first_ts:7.1f}s] 속도: 추론 평균 {sum(stats_ms) / len(stats_ms):.0f}ms "
+                          f"(최대 {max(stats_ms):.0f}ms), 처리 {len(stats_ms) / (ts - stats_start):.1f}fps, "
+                          f"상태 {KOREAN[monitor.status]}")
+                    stats_start, stats_ms = ts, []
 
             for ev in monitor.update(ts, decision):
                 if ev.kind == "status_changed":

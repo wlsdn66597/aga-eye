@@ -220,11 +220,23 @@ sudo apt install -y python3-picamera2 python3-opencv python3-yaml python3-reques
 git clone https://github.com/wlsdn66597/aga-eye.git && cd aga-eye
 python3 -m venv --system-site-packages .venv && source .venv/bin/activate
 pip install onnxruntime
-mkdir -p models   # PC에서 만든 .onnx 파일을 여기로 복사 (예: scp)
+```
+학습 PC에서 만든 모델을 파이의 `models/`로 옮겨요. 파이에서 학습 PC로 접속할 수 있으면 `scp`로 바로 가져와요.
+```bash
+mkdir -p models
+scp 사용자@학습PC주소:~/aga-eye/models/agaeye_A_original_320_aug.onnx models/
+```
+**1) 모델 속도만 재기 (카메라 없이)** — 여러 모델을 한 번에 비교할 수 있어요.
+```bash
+python edge/benchmark.py --model models/agaeye_A_original_320_aug.onnx models/agaeye_A_original_416_aug.onnx
+```
+**2) 카메라로 실행** — 10초마다 평균 추론 시간과 처리 속도(fps)가 출력돼요. `--max-seconds 60`으로 1분만 돌려 볼 수 있어요.
+```bash
 python edge/run_edge.py --source picamera2 --model models/agaeye_A_original_320_aug.onnx --imgsz 320 \
     --server http://<서버 IP>:8000
 ```
 - **입력 크기:** 파이 4는 느려서 입력 320이나 416을 추천해요. Ultralytics 측정으로 YOLOv8n 640 입력은 ONNX 기준 장당 약 560ms예요. `configs/edge.yaml`의 `model`, `imgsz`도 맞춰 주세요.
+- **속도 기준:** 추론 평균이 300ms 이하면 초당 3번 판정(`infer_fps: 3`)이 가능해요. 더 느리면 `infer_fps`를 2로 낮춰도 5초 판정에는 충분해요.
 - **카메라 설치:** 침대 위에서 수직으로 내려다보게 설치해요. 학습 데이터가 그 각도예요.
 - **처리 속도:** 카메라 수집과 추론은 따로 돌아가요. 추론은 초당 3번(`infer_fps`)이면 5초 판정에 충분해요.
 
@@ -241,7 +253,8 @@ agaeye/            공통 코드 (파이에서도 그대로 사용, PyTorch 불�
   sources.py         웹캠·영상 파일·파이 카메라 입력
   imaging.py         한글 경로 이미지 읽기, 밝기, 스냅샷, 화면 표시
 scripts/           학습 PC용: 받기 → 정리 → 학습 → 평가 → 내보내기 → 실험 자동 실행, 판정 기준 비교
-edge/run_edge.py   실시간 실행
+edge/run_edge.py   실시간 실행 (10초마다 속도 출력)
+edge/benchmark.py  카메라 없이 모델 추론 속도 재기
 server/            웹 알림 개발 서버 + 대시보드
 configs/           데이터셋·학습·실험·엣지 설정
 docs/api.md        엣지·서버·웹 사이 요청 형식
