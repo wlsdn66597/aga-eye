@@ -56,3 +56,30 @@ def test_prepare_remaps_and_splits(tmp_path):
     train_files = [Path(p).name for p in Path(holdout["train"]).read_text().splitlines()]
     assert sorted(test_files) == ["IMG_8761_JPG.rf.c.jpg", "IMG_8762_JPG.rf.e.jpg"]
     assert not set(test_files) & set(train_files)
+
+
+def test_external_kjy_style_dataset(tmp_path):
+    """kjy처럼 다른 라벨 방식의 데이터셋을 configs/dataset_kjy.yaml로 정리하고 전체 사진으로 평가해요."""
+    raw, out = tmp_path / "raw", tmp_path / "out"
+    names = ["covered_face", "normal", "overturn"]
+    for split, items in {"train": {"IMG_1.jpg": "1 0.5 0.5 0.4 0.8", "IMG_2.jpg": "0 0.5 0.5 0.4 0.8"},
+                         "test": {"IMG_3.jpg": "2 0.5 0.5 0.4 0.8"}}.items():
+        (raw / split / "images").mkdir(parents=True)
+        (raw / split / "labels").mkdir(parents=True)
+        for name, label in items.items():
+            cv2.imencode(".jpg", np.zeros((32, 32, 3), np.uint8))[1].tofile(str(raw / split / "images" / name))
+            (raw / split / "labels" / (Path(name).stem + ".txt")).write_text(label)
+    (raw / "data.yaml").write_text(yaml.safe_dump({"names": names, "nc": 3}))
+
+    load_script("prepare_dataset").main(["--config", "configs/dataset_kjy.yaml",
+                                         "--raw", str(raw), "--out", str(out)])
+    ev = load_script("evaluate")
+    data = out / "data_original.yaml"
+    imgs = ev.split_images(data, "all")
+    assert sorted(p.name for p in imgs) == ["IMG_1.jpg", "IMG_2.jpg", "IMG_3.jpg"]
+
+    names_out = ev.data_names(data)
+    gts = {p.name: ev.decide(ev.ground_truth(p, names_out), 0.0, 0.0, covered_without_body=True) for p in imgs}
+    assert gts["IMG_1.jpg"].risk_type is None              # normal → 위험 없음
+    assert gts["IMG_2.jpg"].risk_type == "face_covered"    # covered_face → 얼굴 가림
+    assert gts["IMG_3.jpg"].risk_type == "prone"           # overturn → 엎드림

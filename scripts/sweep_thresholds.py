@@ -8,6 +8,8 @@
 python scripts/sweep_thresholds.py --exp A_original_416
 python scripts/sweep_thresholds.py --exp A_original_416 A_original_320 --target-recall 0.9
 python scripts/sweep_thresholds.py --exp A_original_416 --backend onnx   # 파이와 같은 추론 코드로
+python scripts/sweep_thresholds.py --weights runs/train/A_original_320_aug/weights/best.pt \
+    --data datasets/kjy/data_original.yaml --imgsz 320 --split all       # 외부 데이터셋으로
 결과: results/sweep_<실험>_<백엔드>.csv
 """
 from __future__ import annotations
@@ -122,7 +124,9 @@ def main(argv=None) -> None:
     if args.weights:
         if not (args.data and args.imgsz):
             sys.exit("--weights를 쓰면 --data와 --imgsz도 필요해요.")
-        jobs.append((Path(args.weights).stem, args.weights, args.data, args.imgsz))
+        w = Path(args.weights)
+        run = w.parent.parent.name if w.parent.name == "weights" else w.stem
+        jobs.append((f"{run}_{Path(args.data).parent.name}", args.weights, args.data, args.imgsz))
     if not jobs:
         sys.exit("--exp 또는 --weights를 지정하세요.")
 

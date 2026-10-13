@@ -184,6 +184,26 @@ python scripts/run_experiments.py --skip-train --no-export
 ```
 테스트 세트로 고른 기준이라 테스트 점수가 실제보다 약간 좋게 나와요. 직접 찍은 영상으로 다시 확인하세요.
 
+### 외부 테스트: 처음 보는 인형 (SIDS, kjy)
+[SIDS (kjy)](https://universe.roboflow.com/kjy-5agtz/sids-vrari)는 Baby-Position과 다른 인형을 위에서 찍은 1,459장이에요.
+- 클래스: 정상 / 뒤집힘 / 회색 천으로 덮음 (CC BY 4.0)
+- 학습에 쓰지 않은 인형·천이라, 우리 인형으로 테스트할 때와 비슷한 조건의 성능을 볼 수 있어요.
+- kjy는 인형 전체에 박스 하나를 그리는 방식이라, 박스 지표 대신 **사진 단위 위험 판정**만 비교해요.
+- 클래스는 이렇게 바꿔요: 정상 → 바로 누움, 뒤집힘 → 엎드림, 천으로 덮음 → 코·입 가림 (`configs/dataset_kjy.yaml`)
+
+```bash
+python scripts/download_dataset.py --config configs/dataset_kjy.yaml
+```
+```bash
+python scripts/prepare_dataset.py --config configs/dataset_kjy.yaml
+```
+```bash
+python scripts/evaluate.py --weights runs/train/A_original_320_aug/weights/best.pt \
+    --data datasets/kjy/data_original.yaml --imgsz 320 --split all --name kjy_A_original_320_aug
+```
+`--split all`은 학습·검증·테스트로 나뉜 사진을 모두 합쳐 평가한다는 뜻이에요.
+기준값을 바꿔 보려면 `sweep_thresholds.py`에 같은 `--weights --data --imgsz --split all`을 넘기면 돼요.
+
 ---
 
 ## 5. 노트북에서 실시간 실행 (웹캠·영상)

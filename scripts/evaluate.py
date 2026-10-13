@@ -8,7 +8,10 @@ python scripts/evaluate.py --weights runs/train/A_original_416/weights/best.pt \
     --data datasets/agaeye/data_original.yaml --imgsz 416
 python scripts/evaluate.py --weights models/agaeye_A_original_416.onnx --backend onnx \
     --data datasets/agaeye/data_original.yaml --imgsz 416     # 파이와 같은 추론 코드로 평가
-결과: results/eval_<이름>.json
+python scripts/evaluate.py --weights runs/train/A_original_320_aug/weights/best.pt \
+    --data datasets/kjy/data_original.yaml --imgsz 320 --split all --name kjy_A_original_320_aug
+                                                               # 외부 데이터셋 전체로 평가 (박스 지표 생략)
+결과: results/eval_<이름>_<백엔드>.json
 """
 from __future__ import annotations
 
@@ -38,7 +41,10 @@ def data_names(data_yaml: Path) -> List[str]:
 
 
 def split_images(data_yaml: Path, split: str) -> List[Path]:
+    """분할 하나의 사진 목록. split='all'이면 train·val·test를 모두 합쳐요 (외부 데이터셋 평가용)."""
     data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+    if split == "all":
+        return [p for s in ("train", "val", "test") if data.get(s) for p in split_images(data_yaml, s)]
     entry = data.get(split)
     if not entry:
         raise ValueError(f"{data_yaml}에 '{split}' 분할이 없어요.")
@@ -218,7 +224,7 @@ def main(argv=None) -> None:
     ap.add_argument("--weights", required=True, help="best.pt 또는 .onnx")
     ap.add_argument("--data", required=True, help="data_*.yaml")
     ap.add_argument("--imgsz", type=int, required=True)
-    ap.add_argument("--split", default="test")
+    ap.add_argument("--split", default="test", help="train / val / test / all(전부 합침, 외부 데이터셋용)")
     ap.add_argument("--backend", choices=["ultralytics", "onnx"], default="ultralytics",
                     help="onnx: 파이에서 쓰는 agaeye.detector_onnx로 추론")
     ap.add_argument("--no-box", action="store_true", help="박스 지표(Ultralytics val)는 건너뜀")
@@ -229,7 +235,9 @@ def main(argv=None) -> None:
     weights = repo_path(args.weights)
     name = args.name or (weights.parent.parent.name if weights.parent.name == "weights" else weights.stem)
     result = {"name": name}
-    if not args.no_box:
+    if args.split == "all" and not args.no_box:
+        print("split=all은 사진 단위 판정만 평가해요 (박스 지표 생략).")
+    elif not args.no_box:
         result["box"] = box_metrics(weights, args.data, args.imgsz, args.split, name)
     result["image_level"] = image_level(weights, args.data, args.split, args.imgsz,
                                         edge["conf_body"], edge["conf_airway"], args.backend,
